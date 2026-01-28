@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    container_name: itsm-ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    volumes:
+      - ollama-data:/root/.ollama
+    # Keep container running
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: itsm-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:3b
+      - HOST=0.0.0.0
+      - PORT=8000
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./backend:/app/backend
+    command: python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  ollama-data:
+    driver: local

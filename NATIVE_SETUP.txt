@@ -1,0 +1,166 @@
+================================================================================
+ITSM AGENT - NATIVE RUN CHEAT SHEET
+================================================================================
+
+This guide shows how to run the ITSM Agent natively on Windows without Docker.
+
+PREREQUISITES (One-time setup)
+================================================================================
+
+1. INSTALL OLLAMA
+   - Download from: https://ollama.ai
+   - Install to default location
+   - After install, Ollama runs in background automatically on port 11434
+   - Verify: Open http://localhost:11434/api/tags in browser (should return JSON)
+
+2. PULL THE LLM MODEL
+   - Open PowerShell
+   - Run: ollama pull llama3.2:3b
+   - This downloads ~4GB model (one-time)
+   - Takes 5-10 minutes on first run
+   - Run: ollama list
+   - Should see "llama3.2:3b" in output
+
+3. VERIFY PYTHON IS INSTALLED
+   - Run: python --version
+   - Should be 3.10 or higher
+   - If not installed: https://www.python.org/downloads/
+
+QUICK START (Every time you want to run)
+================================================================================
+
+STEP 1: OPEN POWERSHELL
+   PS> cd c:\Projects\self-learning-itsm-agent
+
+STEP 2: VERIFY OLLAMA IS RUNNING
+   PS> Invoke-WebRequest -Uri "http://localhost:11434/api/tags" | Select-Object StatusCode
+   Expected: StatusCode=200
+   
+   If error, start Ollama manually:
+   - Windows: Click the Ollama icon in system tray
+   - Or restart Windows (Ollama auto-starts)
+
+STEP 3: ACTIVATE VIRTUAL ENVIRONMENT
+   PS> .venv\Scripts\Activate.ps1
+   
+   You should see (.venv) at the start of your prompt:
+   (.venv) PS C:\Projects\self-learning-itsm-agent>
+
+STEP 4: START THE BACKEND SERVER
+   PS> python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+   
+   Look for this output:
+   INFO:     Started server process [XXXX]
+   INFO:     Uvicorn running on http://127.0.0.1:8000
+
+STEP 5: OPEN THE APPLICATION
+   - Open browser and go to: http://localhost:8000
+   - API Docs available at: http://localhost:8000/docs
+   - Try processing a ticket via the API
+
+STEP 6: TO STOP THE SERVER
+   Press CTRL+C in the PowerShell terminal
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+OLLAMA NOT STARTING
+   Problem: Server says "cannot connect to http://localhost:11434"
+   Solution 1: Click Ollama icon in system tray (bottom right)
+   Solution 2: Restart your computer (Ollama auto-starts after reboot)
+   Solution 3: Manually start from Windows: ollama serve
+
+PYTHON VENV NOT FOUND
+   Problem: ".venv\Scripts\Activate.ps1" fails
+   Solution: Create it:
+      PS> python -m venv .venv
+      PS> .venv\Scripts\Activate.ps1
+
+MISSING PYTHON PACKAGES
+   Problem: "No module named 'fastapi'" error
+   Solution: Install requirements:
+      PS> pip install -r requirements.txt
+
+PORT 8000 ALREADY IN USE
+   Problem: "Address already in use"
+   Solution 1: Use different port:
+      PS> python -m uvicorn backend.main:app --host 127.0.0.1 --port 8001
+   Solution 2: Kill existing process:
+      PS> netstat -ano | findstr :8000
+      PS> taskkill /PID <PID> /F
+
+SLOW/STUCK REQUESTS
+   Problem: API calls are very slow or timeout
+   Solution: Ollama model is loading into memory (normal on first request)
+   - First request: 30-60 seconds (model loads into RAM)
+   - Subsequent requests: 5-15 seconds (normal for local LLM)
+   - If stuck longer, check Ollama is running with: ollama list
+
+================================================================================
+DEVELOPMENT WORKFLOW
+================================================================================
+
+Code changes don't auto-reload with this method. To test changes:
+
+1. Stop the server (CTRL+C)
+2. Edit your code
+3. Restart the server with the same command
+4. Refresh browser or re-run API calls
+
+For auto-reload during development, use:
+PS> pip install watchdog
+PS> python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+
+================================================================================
+COMMON COMMANDS
+================================================================================
+
+# Check if Ollama is running
+ollama list
+
+# Start Ollama manually
+ollama serve
+
+# See what models you have
+ollama list
+
+# Pull a different model (optional)
+ollama pull mistral
+ollama pull llama2
+
+# Delete a model (frees disk space)
+ollama rm llama3.2:3b
+
+# View backend logs in real-time
+cd c:\Projects\self-learning-itsm-agent
+.venv\Scripts\Activate.ps1
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+
+# Deactivate Python venv
+deactivate
+
+================================================================================
+QUICK REFERENCE: 3-COMMAND START
+================================================================================
+
+For copy-paste when you've done this before:
+
+cd c:\Projects\self-learning-itsm-agent
+.venv\Scripts\Activate.ps1
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+
+Then open: http://localhost:8000
+
+================================================================================
+WHEN RUNNING IN CONTAINERS WORKS (Future)
+================================================================================
+
+Once your network is fixed for Podman, use:
+PS> .\manage-containers.ps1 start
+
+And access the same way: http://localhost:8000
+
+The container setup is already configured - just waiting for network fixes.
+
+================================================================================
