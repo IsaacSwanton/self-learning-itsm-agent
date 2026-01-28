@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ITSM Learning Agent - A self-improving IT Service Management agent">
+    <title>ITSM Learning Agent</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🤖</span>
+                <h1>ITSM Learning Agent</h1>
+            </div>
+            <div class="status-indicator" id="status-indicator">
+                <span class="status-dot"></span>
+                <span class="status-text">Checking connection...</span>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="upload">
+                <span class="tab-icon">📤</span>
+                Upload Tickets
+            </button>
+            <button class="nav-tab" data-tab="dashboard">
+                <span class="tab-icon">📊</span>
+                Dashboard
+            </button>
+            <button class="nav-tab" data-tab="skills">
+                <span class="tab-icon">🧠</span>
+                Skills Review
+                <span class="badge" id="pending-skills-badge" style="display: none;">0</span>
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Tab -->
+            <section class="tab-content active" id="upload-tab">
+                <div class="upload-section">
+                    <div class="upload-zone" id="drop-zone">
+                        <div class="upload-icon">📁</div>
+                        <h2>Drop your ticket file here</h2>
+                        <p>Supports CSV and JSON formats</p>
+                        <input type="file" id="file-input" accept=".csv,.json" hidden>
+                        <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                            Browse Files
+                        </button>
+                    </div>
+                    
+                    <div class="upload-preview" id="upload-preview" style="display: none;">
+                        <div class="preview-header">
+                            <h3 id="preview-filename"></h3>
+                            <button class="btn btn-ghost" id="clear-upload">Clear</button>
+                        </div>
+                        <div class="preview-info">
+                            <span id="preview-count">0 tickets</span>
+                        </div>
+                        <button class="btn btn-primary btn-large" id="process-btn">
+                            🚀 Process Tickets
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Tab -->
+            <section class="tab-content" id="dashboard-tab">
+                <div class="dashboard-grid">
+                    <!-- Stats Cards -->
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Processed</div>
+                            <div class="stat-value" id="stat-total">0</div>
+                        </div>
+                        <div class="stat-card accuracy">
+                            <div class="stat-label">Category Accuracy</div>
+                            <div class="stat-value" id="stat-category">--%</div>
+                        </div>
+                        <div class="stat-card accuracy">
+                            <div class="stat-label">Routing Accuracy</div>
+                            <div class="stat-value" id="stat-routing">--%</div>
+                        </div>
+                        <div class="stat-card accuracy">
+                            <div class="stat-label">Resolution Accuracy</div>
+                            <div class="stat-value" id="stat-resolution">--%</div>
+                        </div>
+                    </div>
+
+                    <!-- Results Table -->
+                    <div class="results-section">
+                        <h3>Processing Results</h3>
+                        <div class="table-container">
+                            <table class="results-table" id="results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket ID</th>
+                                        <th>Title</th>
+                                        <th>Category</th>
+                                        <th>Routing</th>
+                                        <th>Resolution</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="results-body">
+                                    <tr class="empty-row">
+                                        <td colspan="6">No results yet. Upload and process tickets to see results.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Skills Review Tab -->
+            <section class="tab-content" id="skills-tab">
+                <div class="skills-section">
+                    <div class="skills-header">
+                        <h2>Proposed Skills</h2>
+                        <p>Review and approve skills learned from ticket processing</p>
+                    </div>
+                    
+                    <div class="skills-list" id="skills-list">
+                        <div class="empty-state">
+                            <span class="empty-icon">🎓</span>
+                            <h3>No pending skills</h3>
+                            <p>When the agent learns new patterns, proposals will appear here for your review.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="approved-skills-section">
+                    <h3>Active Skills</h3>
+                    <div class="active-skills-list" id="active-skills-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Skill Preview Modal -->
+        <div class="modal" id="skill-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-skill-name">Skill Preview</h3>
+                    <button class="btn btn-ghost modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="skill-meta">
+                        <span class="skill-trigger" id="modal-skill-trigger"></span>
+                    </div>
+                    <div class="skill-content-preview" id="modal-skill-content">
+                        <!-- Skill markdown content -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" id="modal-reject">Reject</button>
+                    <button class="btn btn-primary" id="modal-approve">Approve Skill</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

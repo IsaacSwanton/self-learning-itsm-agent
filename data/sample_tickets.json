@@ -1,0 +1,94 @@
+{
+    "tickets": [
+        {
+            "id": "TKT-001",
+            "title": "Cannot access email - Outlook connection error",
+            "description": "Hi, I've been unable to send or receive emails since 8am this morning. Outlook keeps showing 'Disconnected' in the bottom right corner. I've tried restarting but it didn't help. This is urgent as I have important client deadlines today.",
+            "created_at": "2026-01-28T08:30:00Z",
+            "actual_category": "Incident",
+            "actual_routing": "Email Support Team",
+            "actual_resolution": "Recreated Outlook profile and reconnected to Exchange server"
+        },
+        {
+            "id": "TKT-002",
+            "title": "Request for project management software",
+            "description": "Our team is starting a new project next month and we'd like to request installation of Asana for project tracking. We have 5 team members who would need access.",
+            "created_at": "2026-01-28T09:15:00Z",
+            "actual_category": "Service Request",
+            "actual_routing": "Desktop Support",
+            "actual_resolution": "Submitted software request form for Asana licenses"
+        },
+        {
+            "id": "TKT-003",
+            "title": "VPN keeps disconnecting",
+            "description": "For the past week, my VPN connection drops every 10-15 minutes. I'm working from home and this is really affecting my work. Getting error 'Connection lost - reconnecting' each time. Using GlobalProtect client.",
+            "created_at": "2026-01-28T09:45:00Z",
+            "actual_category": "Incident",
+            "actual_routing": "Network Team",
+            "actual_resolution": "Updated VPN client and adjusted MTU settings"
+        },
+        {
+            "id": "TKT-004",
+            "title": "Password reset for corporate account",
+            "description": "Hi, I forgot my password and now my account is locked. Can you please reset it? My username is jsmith.",
+            "created_at": "2026-01-28T10:00:00Z",
+            "actual_category": "Service Request",
+            "actual_routing": "Level 1 Service Desk",
+            "actual_resolution": "Reset password and unlocked account after identity verification"
+        },
+        {
+            "id": "TKT-005",
+            "title": "Server performance degradation - multiple users affected",
+            "description": "Multiple users from the finance team are reporting that the SAP application is extremely slow today. Response times are 5-10 seconds for every action. This is affecting month-end closing activities.",
+            "created_at": "2026-01-28T10:30:00Z",
+            "actual_category": "Incident",
+            "actual_routing": "Server Team",
+            "actual_resolution": "Identified memory leak in application server, restarted service"
+        },
+        {
+            "id": "TKT-006",
+            "title": "New employee laptop setup",
+            "description": "New employee Sarah Johnson is starting on Monday February 3rd in the Marketing department. She will need a laptop with standard software plus Adobe Creative Suite.",
+            "created_at": "2026-01-28T11:00:00Z",
+            "actual_category": "Service Request",
+            "actual_routing": "Desktop Support",
+            "actual_resolution": "Prepared laptop with standard image plus Adobe CC licenses"
+        },
+        {
+            "id": "TKT-007",
+            "title": "Suspicious email received",
+            "description": "I received an email that looks like it's from IT asking me to reset my password, but the link goes to a strange website. The email is from 'IT-Support@company-security.xyz'. I haven't clicked anything yet.",
+            "created_at": "2026-01-28T11:30:00Z",
+            "actual_category": "Incident",
+            "actual_routing": "Security Team",
+            "actual_resolution": "Confirmed phishing attempt. Blocked sender domain and sent company-wide alert"
+        },
+        {
+            "id": "TKT-008",
+            "title": "Recurring application crashes",
+            "description": "The CRM application crashes every time I try to generate a sales report. This has happened 3 times this week. I get an error message 'Unhandled exception' before it closes. This is the same issue we had last month.",
+            "created_at": "2026-01-28T12:00:00Z",
+            "actual_category": "Problem",
+            "actual_routing": "Application Support",
+            "actual_resolution": "Identified root cause as database query timeout. Optimized report queries"
+        },
+        {
+            "id": "TKT-009",
+            "title": "Request to modify firewall rules",
+            "description": "We need to open port 8443 on the external firewall for a new vendor integration. The vendor's IP range is 203.0.113.0/24. This change has been approved by the security team.",
+            "created_at": "2026-01-28T12:30:00Z",
+            "actual_category": "Change Request",
+            "actual_routing": "Network Team",
+            "actual_resolution": "Implemented firewall rule change during maintenance window"
+        },
+        {
+            "id": "TKT-010",
+            "title": "Printer not working on 3rd floor",
+            "description": "The main printer on the 3rd floor (HP LaserJet next to the break room) is showing offline on everyone's computers. We've checked and it's powered on with no error lights.",
+            "created_at": "2026-01-28T13:00:00Z",
+            "actual_category": "Incident",
+            "actual_routing": "Desktop Support",
+            "actual_resolution": "Restarted print spooler and re-added printer to network"
+        }
+    ]
+}
