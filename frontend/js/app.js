@@ -1,413 +1,246 @@
 /**
- * ITSM Learning Agent - Frontend Application
+ * ITSM Learning Agent - Modern Frontend
  */
 
 // State
 let currentRunId = null;
-let currentSkillId = null;
 
 // DOM Elements
 const statusIndicator = document.getElementById('status-indicator');
-const statusText = statusIndicator.querySelector('.status-text');
-const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-const uploadPreview = document.getElementById('upload-preview');
-const previewFilename = document.getElementById('preview-filename');
-const previewCount = document.getElementById('preview-count');
-const processBtn = document.getElementById('process-btn');
-const clearUpload = document.getElementById('clear-upload');
-const resultsBody = document.getElementById('results-body');
-const skillsList = document.getElementById('skills-list');
-const activeSkillsList = document.getElementById('active-skills-list');
-const pendingBadge = document.getElementById('pending-skills-badge');
-const modal = document.getElementById('skill-modal');
+const uploadBox = document.getElementById('upload-box');
+const filePreview = document.getElementById('file-preview');
+const processingStatus = document.getElementById('processing-status');
+const skillModal = document.getElementById('skill-modal');
+const modalOverlay = document.getElementById('modal-overlay');
+const modalClose = document.getElementById('modal-close');
 
 // Navigation
-document.querySelectorAll('.nav-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const tabId = tab.dataset.tab;
-
-        // Update active tab
-        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-
-        // Show corresponding content
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.getElementById(`${tabId}-tab`).classList.add('active');
-
-        // Refresh data for certain tabs
-        if (tabId === 'skills') {
-            loadProposedSkills();
-            loadActiveSkills();
-        }
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        
+        // Update active nav
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        
+        // Show page
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(`${page}-page`).classList.add('active');
+        
+        // Load data
+        if (page === 'skills') loadProposedSkills();
     });
 });
 
-// Health Check
-async function checkHealth() {
-    try {
-        const response = await fetch('/api/health');
-        const data = await response.json();
-
-        if (data.ollama_available) {
-            statusIndicator.classList.add('connected');
-            statusIndicator.classList.remove('error');
-            statusText.textContent = 'Ollama Connected';
-        } else {
-            statusIndicator.classList.remove('connected');
-            statusIndicator.classList.add('error');
-            statusText.textContent = 'Ollama Not Available';
-        }
-    } catch (error) {
-        statusIndicator.classList.remove('connected');
-        statusIndicator.classList.add('error');
-        statusText.textContent = 'Server Error';
-    }
-}
-
-// File Upload
-let uploadedFile = null;
-
-dropZone.addEventListener('click', () => fileInput.click());
-
-dropZone.addEventListener('dragover', (e) => {
+// File upload
+uploadBox.addEventListener('click', () => fileInput.click());
+uploadBox.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropZone.classList.add('dragover');
+    uploadBox.style.borderColor = 'var(--primary)';
 });
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
+uploadBox.addEventListener('dragleave', () => {
+    uploadBox.style.borderColor = 'var(--border-color)';
 });
-
-dropZone.addEventListener('drop', (e) => {
+uploadBox.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.classList.remove('dragover');
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        handleFileSelect(files[0]);
+    if (e.dataTransfer.files.length) {
+        handleFileSelect(e.dataTransfer.files[0]);
     }
 });
 
 fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        handleFileSelect(e.target.files[0]);
-    }
+    if (e.target.files.length) handleFileSelect(e.target.files[0]);
 });
 
 function handleFileSelect(file) {
     if (!file.name.endsWith('.json') && !file.name.endsWith('.csv')) {
-        alert('Please upload a JSON or CSV file');
+        alert('Please select a CSV or JSON file');
         return;
     }
-
-    uploadedFile = file;
-    previewFilename.textContent = file.name;
-
-    // Count tickets (rough estimate for preview)
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const content = e.target.result;
-        let count = 0;
-
-        if (file.name.endsWith('.json')) {
-            try {
-                const data = JSON.parse(content);
-                count = Array.isArray(data) ? data.length : (data.tickets?.length || 0);
-            } catch {
-                count = 0;
-            }
-        } else {
-            // CSV - count lines minus header
-            count = content.split('\n').length - 1;
-        }
-
-        previewCount.textContent = `${count} tickets found`;
-    };
-    reader.readAsText(file);
-
-    dropZone.style.display = 'none';
-    uploadPreview.style.display = 'block';
+    uploadBox.style.display = 'none';
+    filePreview.style.display = 'block';
+    document.getElementById('preview-filename').textContent = file.name;
+    document.getElementById('preview-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
 }
 
-clearUpload.addEventListener('click', () => {
-    uploadedFile = null;
+document.getElementById('clear-file')?.addEventListener('click', () => {
     fileInput.value = '';
-    dropZone.style.display = 'flex';
-    uploadPreview.style.display = 'none';
+    uploadBox.style.display = 'block';
+    filePreview.style.display = 'none';
 });
 
-// Process Tickets
-processBtn.addEventListener('click', async () => {
-    if (!uploadedFile) return;
-
-    processBtn.disabled = true;
-    processBtn.textContent = '⏳ Uploading...';
-
+document.getElementById('process-btn')?.addEventListener('click', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    
+    filePreview.style.display = 'none';
+    processingStatus.style.display = 'flex';
+    document.getElementById('status-text').textContent = 'Uploading tickets...';
+    
     try {
-        // Upload file
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-
-        const uploadResponse = await fetch('/api/tickets/upload', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!uploadResponse.ok) {
-            throw new Error('Upload failed');
-        }
-
-        const uploadData = await uploadResponse.json();
-        currentRunId = uploadData.run_id;
-
-        processBtn.textContent = '🔄 Processing...';
-
-        // Process tickets
-        const processResponse = await fetch(`/api/tickets/process/${currentRunId}`, {
-            method: 'POST'
-        });
-
-        if (!processResponse.ok) {
-            throw new Error('Processing failed');
-        }
-
-        const results = await processResponse.json();
-
-        // Update dashboard
-        updateDashboard(results);
-
-        // Switch to dashboard tab
-        document.querySelector('[data-tab="dashboard"]').click();
-
-        // Check for new skills
-        loadProposedSkills();
-
-        // Reset upload state
-        clearUpload.click();
-
-    } catch (error) {
-        alert('Error: ' + error.message);
-    } finally {
-        processBtn.disabled = false;
-        processBtn.textContent = '🚀 Process Tickets';
+        // Upload
+        const form = new FormData();
+        form.append('file', file);
+        const upResp = await fetch('/api/tickets/upload', { method: 'POST', body: form });
+        if (!upResp.ok) throw new Error('Upload failed');
+        const upData = await upResp.json();
+        currentRunId = upData.run_id;
+        
+        // Process
+        document.getElementById('status-text').textContent = 'Processing tickets...';
+        const procResp = await fetch(`/api/tickets/process/${currentRunId}`, { method: 'POST' });
+        if (!procResp.ok) throw new Error('Process failed');
+        
+        processingStatus.style.display = 'none';
+        await loadResults();
+        document.querySelector('[data-page="results"]').click();
+    } catch (e) {
+        document.getElementById('status-text').textContent = `Error: ${e.message}`;
     }
 });
 
-// Update Dashboard
-function updateDashboard(results) {
-    document.getElementById('stat-total').textContent = results.total_tickets;
-
-    // Calculate accuracy from results
-    if (results.results && results.results.length > 0) {
-        const catCorrect = results.results.filter(r => r.category_correct === true).length;
-        const routeCorrect = results.results.filter(r => r.routing_correct === true).length;
-        const resCorrect = results.results.filter(r => r.resolution_correct === true).length;
-        const total = results.results.length;
-
-        document.getElementById('stat-category').textContent =
-            Math.round((catCorrect / total) * 100) + '%';
-        document.getElementById('stat-routing').textContent =
-            Math.round((routeCorrect / total) * 100) + '%';
-        document.getElementById('stat-resolution').textContent =
-            Math.round((resCorrect / total) * 100) + '%';
+// Load results
+async function loadResults() {
+    try {
+        const resp = await fetch(`/api/tickets/status/${currentRunId}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        
+        // Update stats
+        document.getElementById('stat-total').textContent = data.processed_tickets;
+        
+        const catAccuracy = data.accuracy?.category || 0;
+        const routAccuracy = data.accuracy?.routing || 0;
+        const resAccuracy = data.accuracy?.resolution || 0;
+        
+        document.getElementById('stat-category').textContent = (catAccuracy * 100).toFixed(0) + '%';
+        document.getElementById('stat-routing').textContent = (routAccuracy * 100).toFixed(0) + '%';
+        document.getElementById('stat-resolution').textContent = (resAccuracy * 100).toFixed(0) + '%';
+        
+        // Update results table
+        const tbody = document.getElementById('results-body');
+        tbody.innerHTML = '';
+        
+        if (data.results && data.results.length > 0) {
+            data.results.forEach(r => {
+                const row = document.createElement('tr');
+                const catStatus = r.category_correct ? 'correct' : 'incorrect';
+                const routStatus = r.routing_correct ? 'correct' : 'incorrect';
+                row.innerHTML = `
+                    <td>${r.ticket?.id || '-'}</td>
+                    <td>${r.ticket?.title || '-'}</td>
+                    <td><span class="status-badge ${catStatus}">${r.prediction?.predicted_category || '-'}</span></td>
+                    <td><span class="status-badge ${routStatus}">${r.prediction?.predicted_routing || '-'}</span></td>
+                    <td><span class="status-badge ${catStatus}">${catStatus === 'correct' ? '✓' : '✗'}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No results available</td></tr>';
+        }
+    } catch (e) {
+        console.error('Failed to load results:', e);
     }
-
-    // Update results table
-    resultsBody.innerHTML = '';
-
-    if (!results.results || results.results.length === 0) {
-        resultsBody.innerHTML = '<tr class="empty-row"><td colspan="6">No results</td></tr>';
-        return;
-    }
-
-    results.results.forEach(result => {
-        const row = document.createElement('tr');
-
-        const catStatus = result.category_correct === true ? 'correct' :
-            result.category_correct === false ? 'incorrect' : 'unknown';
-        const routeStatus = result.routing_correct === true ? 'correct' :
-            result.routing_correct === false ? 'incorrect' : 'unknown';
-        const resStatus = result.resolution_correct === true ? 'correct' :
-            result.resolution_correct === false ? 'incorrect' : 'unknown';
-
-        const overallStatus = (catStatus === 'correct' && routeStatus === 'correct') ? 'correct' :
-            (catStatus === 'incorrect' || routeStatus === 'incorrect') ? 'incorrect' : 'unknown';
-
-        row.innerHTML = `
-            <td>${result.ticket.id}</td>
-            <td>${truncate(result.ticket.title, 40)}</td>
-            <td><span class="status-badge ${catStatus}">${result.prediction.predicted_category}</span></td>
-            <td><span class="status-badge ${routeStatus}">${result.prediction.predicted_routing}</span></td>
-            <td>${truncate(result.prediction.predicted_resolution, 50)}</td>
-            <td><span class="status-badge ${overallStatus}">${overallStatus}</span></td>
-        `;
-
-        resultsBody.appendChild(row);
-    });
 }
 
-function truncate(str, len) {
-    if (!str) return '';
-    return str.length > len ? str.substring(0, len) + '...' : str;
-}
-
-// Load Proposed Skills
+// Load proposed skills
 async function loadProposedSkills() {
     try {
-        const response = await fetch('/api/skills/proposed');
-        const data = await response.json();
-
-        // Update badge
-        if (data.count > 0) {
-            pendingBadge.style.display = 'inline-block';
-            pendingBadge.textContent = data.count;
-        } else {
-            pendingBadge.style.display = 'none';
-        }
-
-        // Update list
-        if (data.count === 0) {
-            skillsList.innerHTML = `
-                <div class="empty-state">
-                    <span class="empty-icon">🎓</span>
-                    <h3>No pending skills</h3>
-                    <p>When the agent learns new patterns, proposals will appear here for your review.</p>
-                </div>
-            `;
+        const resp = await fetch('/api/skills/proposed');
+        if (!resp.ok) return;
+        const data = resp.json();
+        
+        const container = document.getElementById('pending-skills-grid');
+        if (!container) return;
+        
+        const skills = data.skills || [];
+        
+        if (skills.length === 0) {
+            container.innerHTML = '<div class="empty-message">No pending skills</div>';
             return;
         }
-
-        skillsList.innerHTML = '';
-        data.skills.forEach(skill => {
+        
+        container.innerHTML = '';
+        skills.forEach(skill => {
             const card = document.createElement('div');
             card.className = 'skill-card';
             card.innerHTML = `
-                <div class="skill-card-header">
-                    <div>
-                        <h4>${skill.name}</h4>
-                        <span class="skill-trigger">Trigger: ${skill.trigger_pattern || 'Auto-detected'}</span>
-                    </div>
-                </div>
-                <p>${skill.description}</p>
-                <p style="font-size: 0.85rem; color: var(--text-muted);">
-                    Source tickets: ${skill.source_tickets.join(', ')}
-                </p>
-                <div class="skill-actions">
-                    <button class="btn btn-ghost" onclick="previewSkill('${skill.id}')">Preview</button>
-                    <button class="btn btn-danger" onclick="rejectSkill('${skill.id}')">Reject</button>
-                    <button class="btn btn-success" onclick="approveSkill('${skill.id}')">Approve</button>
-                </div>
+                <div class="skill-name">${skill.name || 'Unnamed Skill'}</div>
+                <div class="skill-description">${skill.description || 'No description'}</div>
+                <div class="skill-trigger">${skill.trigger_pattern || 'General'}</div>
             `;
-            skillsList.appendChild(card);
+            card.addEventListener('click', () => showSkillModal(skill));
+            container.appendChild(card);
         });
-
-    } catch (error) {
-        console.error('Error loading proposed skills:', error);
-    }
-}
-
-// Load Active Skills
-async function loadActiveSkills() {
-    try {
-        const response = await fetch('/api/skills/');
-        const data = await response.json();
-
-        activeSkillsList.innerHTML = '';
-
-        if (data.count === 0) {
-            activeSkillsList.innerHTML = '<p style="color: var(--text-muted);">No active skills</p>';
-            return;
+        
+        // Update badge
+        const badge = document.getElementById('skills-badge');
+        if (badge && skills.length > 0) {
+            badge.textContent = skills.length;
+            badge.style.display = 'inline-flex';
         }
-
-        data.skills.forEach(skill => {
-            const card = document.createElement('div');
-            card.className = 'active-skill-card';
-            card.innerHTML = `
-                <h4><span>✅</span> ${skill.name}</h4>
-                <p>${skill.description}</p>
-            `;
-            activeSkillsList.appendChild(card);
-        });
-
-    } catch (error) {
-        console.error('Error loading active skills:', error);
+    } catch (e) {
+        console.error('Failed to load skills:', e);
     }
 }
 
-// Skill Actions
-async function previewSkill(skillId) {
-    try {
-        const response = await fetch(`/api/skills/proposed/${skillId}`);
-        const skill = await response.json();
-
-        currentSkillId = skillId;
-        document.getElementById('modal-skill-name').textContent = skill.name;
-        document.getElementById('modal-skill-trigger').textContent = `Trigger: ${skill.trigger_pattern || 'Auto-detected'}`;
-        document.getElementById('modal-skill-content').textContent = skill.content;
-
-        modal.classList.add('active');
-    } catch (error) {
-        alert('Error loading skill preview');
-    }
-}
-
-async function approveSkill(skillId) {
-    try {
-        const response = await fetch(`/api/skills/approve/${skillId}`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            modal.classList.remove('active');
+// Show skill modal
+function showSkillModal(skill) {
+    document.getElementById('modal-title').textContent = skill.name;
+    document.getElementById('modal-body').innerHTML = `
+        <p><strong>Description:</strong> ${skill.description}</p>
+        <p><strong>Trigger:</strong> ${skill.trigger_pattern}</p>
+        <p><strong>Source Tickets:</strong> ${skill.source_tickets?.join(', ') || 'N/A'}</p>
+    `;
+    
+    document.getElementById('modal-approve')?.addEventListener('click', async () => {
+        try {
+            await fetch(`/api/skills/approve/${skill.id}`, { method: 'POST' });
+            skillModal.style.display = 'none';
             loadProposedSkills();
-            loadActiveSkills();
-        } else {
-            alert('Error approving skill');
+        } catch (e) {
+            console.error('Approve failed:', e);
         }
-    } catch (error) {
-        alert('Error approving skill');
-    }
-}
-
-async function rejectSkill(skillId) {
-    if (!confirm('Are you sure you want to reject this skill?')) return;
-
-    try {
-        const response = await fetch(`/api/skills/reject/${skillId}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            modal.classList.remove('active');
+    });
+    
+    document.getElementById('modal-reject')?.addEventListener('click', async () => {
+        try {
+            await fetch(`/api/skills/reject/${skill.id}`, { method: 'POST' });
+            skillModal.style.display = 'none';
             loadProposedSkills();
-        } else {
-            alert('Error rejecting skill');
+        } catch (e) {
+            console.error('Reject failed:', e);
         }
-    } catch (error) {
-        alert('Error rejecting skill');
+    });
+    
+    skillModal.style.display = 'flex';
+}
+
+// Modal close
+modalClose?.addEventListener('click', () => {
+    skillModal.style.display = 'none';
+});
+modalOverlay?.addEventListener('click', () => {
+    skillModal.style.display = 'none';
+});
+
+// Health check
+async function checkHealth() {
+    try {
+        const resp = await fetch('/api/health');
+        if (resp.ok) {
+            statusIndicator.style.color = 'var(--primary)';
+            statusIndicator.title = 'System healthy';
+        } else {
+            statusIndicator.style.color = '#d32f2f';
+            statusIndicator.title = 'System error';
+        }
+    } catch {
+        statusIndicator.style.color = '#d32f2f';
+        statusIndicator.title = 'Connection failed';
     }
 }
 
-// Modal handlers
-document.querySelector('.modal-close').addEventListener('click', () => {
-    modal.classList.remove('active');
-});
-
-document.getElementById('modal-approve').addEventListener('click', () => {
-    if (currentSkillId) approveSkill(currentSkillId);
-});
-
-document.getElementById('modal-reject').addEventListener('click', () => {
-    if (currentSkillId) rejectSkill(currentSkillId);
-});
-
-modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-        modal.classList.remove('active');
-    }
-});
-
-// Initialize
 checkHealth();
-loadActiveSkills();
-setInterval(checkHealth, 30000); // Check every 30 seconds
+setInterval(checkHealth, 30000);
