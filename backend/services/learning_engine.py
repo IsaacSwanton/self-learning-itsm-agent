@@ -175,14 +175,14 @@ Respond with ONLY valid JSON, no markdown formatting."""
         skill_id = f"{skill_type}-{uuid.uuid4().hex[:8]}"
         timestamp = datetime.utcnow().isoformat()
         ticket_ids = [r.ticket.id for r in failures]
-        
-        # Create skill from response or fallback
+        # If LLM returned nothing useful, skip creating a proposal
         if not response or "error" in response:
-            print(f"[Learning Engine] LLM response parsing failed, using structured fallback")
-            skill_content = self._create_structured_skill(failures, skill_type, timestamp, {})
-        else:
-            skill_content = self._create_structured_skill(failures, skill_type, timestamp, response)
-        
+            print(f"[Learning Engine] LLM response parsing failed; skipping proposal")
+            return None
+
+        # Create skill from LLM response
+        skill_content = self._create_structured_skill(failures, skill_type, timestamp, response)
+
         skill_name = response.get('skill_name', f'learned-{skill_type}')
         skill_description = response.get('description', f'Learned {skill_type} patterns from {len(failures)} failed predictions')
         
@@ -197,9 +197,31 @@ Respond with ONLY valid JSON, no markdown formatting."""
             else:
                 patterns_list.append(str(p))
         
+        # Build a more descriptive display name from the LLM response
+        raw_name = None
+        if isinstance(response.get('skill_name'), str) and response.get('skill_name').strip():
+            raw_name = response.get('skill_name').strip()
+        elif isinstance(response.get('description'), str) and response.get('description').strip():
+            # Use the first 8 words of the description as a fallback human-readable name
+            raw_name = ' '.join(response.get('description').strip().split()[:8])
+        elif patterns_list:
+            raw_name = ' / '.join(patterns_list[:2])
+        else:
+            raw_name = f"learned-{skill_type}"
+
+        # Sanitize and shorten the raw name
+        import re
+        sanitized = re.sub(r"[^A-Za-z0-9 \-]+", ' ', raw_name).strip()
+        sanitized = re.sub(r"\s+", ' ', sanitized)
+        display_base = sanitized[:60].strip()
+
+        # Append a short id suffix for uniqueness and traceability
+        suffix = skill_id.split('-')[-1]
+        display_name = f"{display_base} ({suffix})"
+
         skill = ProposedSkill(
             id=skill_id,
-            name=skill_name,
+            name=display_name,
             description=skill_description,
             trigger_pattern=", ".join(patterns_list) if patterns_list else f"Similar {skill_type} issues",
             content=skill_content,
