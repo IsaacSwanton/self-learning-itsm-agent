@@ -3,7 +3,7 @@ from pathlib import Path
 
 # Base paths
 BASE_DIR = Path(__file__).parent.parent
-SKILLS_DIR = BASE_DIR / ".claude" / "skills"
+SKILLS_DIR = BASE_DIR / ".agent" / "skills"
 DATA_DIR = BASE_DIR / "data"
 TICKETS_DIR = DATA_DIR / "tickets"
 PROPOSED_SKILLS_DIR = DATA_DIR / "proposed_skills"

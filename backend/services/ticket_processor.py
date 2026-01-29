@@ -25,16 +25,20 @@ class TicketProcessor:
     async def process_ticket(self, ticket: Ticket) -> ProcessingResult:
         """Process a single ticket through all skills"""
         
-        # Get skill instructions
+        # Get skill instructions for all available skills
         categorization_skill = self.skill_loader.get_skill_content("categorization")
         routing_skill = self.skill_loader.get_skill_content("routing")
         resolution_skill = self.skill_loader.get_skill_content("resolution")
+        ticket_parser_skill = self.skill_loader.get_skill_content("ticket-parser")
+        email_routing_skill = self.skill_loader.get_skill_content("Email Routing Skill")
         
         # Build the combined prompt with skill context
         system_prompt = self._build_system_prompt(
             categorization_skill,
             routing_skill,
-            resolution_skill
+            resolution_skill,
+            ticket_parser_skill,
+            email_routing_skill
         )
         
         prompt = self._build_ticket_prompt(ticket)
@@ -127,9 +131,11 @@ class TicketProcessor:
         self,
         categorization_skill: Optional[str],
         routing_skill: Optional[str],
-        resolution_skill: Optional[str]
+        resolution_skill: Optional[str],
+        ticket_parser_skill: Optional[str] = None,
+        email_routing_skill: Optional[str] = None
     ) -> str:
-        """Build the system prompt with skill instructions"""
+        """Build the system prompt with all available skill instructions"""
         
         base_prompt = """You are an ITSM (IT Service Management) agent specializing in ticket processing.
 Your role is to analyze support tickets and provide:
@@ -149,6 +155,10 @@ Respond ONLY with a JSON object in this exact format:
 }
 """
         
+        # Add all available skills to the prompt
+        if ticket_parser_skill:
+            base_prompt += f"\n\n## Ticket Parsing Guidelines\n{ticket_parser_skill}"
+        
         if categorization_skill:
             base_prompt += f"\n\n## Categorization Guidelines\n{categorization_skill}"
         
@@ -157,6 +167,9 @@ Respond ONLY with a JSON object in this exact format:
         
         if resolution_skill:
             base_prompt += f"\n\n## Resolution Guidelines\n{resolution_skill}"
+        
+        if email_routing_skill:
+            base_prompt += f"\n\n## Email Routing Skill (Learned)\n{email_routing_skill}"
         
         return base_prompt
     
