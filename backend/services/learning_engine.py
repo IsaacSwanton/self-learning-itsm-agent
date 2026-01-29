@@ -31,30 +31,32 @@ source_tickets: {ticket_ids}
 
 {summary}
 
-## When to Apply
+## Key Insights from Failed Cases
 
-This skill should be used when processing tickets that match these patterns:
-{trigger_patterns}
+These insights are based on actual misclassifications. Use them as contextual guidance:
 
-## Learned Patterns
+{learning_insights}
 
-{patterns_section}
+## Examples from Real Failures
 
-## Decision Rules
-
-{rules_section}
-
-## Examples
+These examples show why the previous approach was incorrect:
 
 {examples_section}
+
+## How to Apply This Skill
+
+1. When processing a new ticket, review these examples
+2. Consider whether the new ticket shares characteristics with any of these failed cases
+3. If similarities exist, think carefully about whether the original wrong decision might be made again
+4. Use these insights to inform your decision-making, not as absolute rules
 
 ## Output Format
 
 ```json
 {{
-    "{output_field}": "value based on rules above",
+    "{output_field}": "your decision here",
     "confidence": 0.0-1.0,
-    "reasoning": "Brief explanation citing which rule or pattern was matched"
+    "reasoning": "Brief explanation of how you applied insights from this skill"
 }}
 ```
 """
@@ -175,7 +177,7 @@ Respond with ONLY valid JSON, no markdown formatting."""
         ticket_ids = [r.ticket.id for r in failures]
         
         # Create skill from response or fallback
-        if "error" in response:
+        if not response or "error" in response:
             print(f"[Learning Engine] LLM response parsing failed, using structured fallback")
             skill_content = self._create_structured_skill(failures, skill_type, timestamp, {})
         else:
@@ -247,9 +249,13 @@ Respond with ONLY valid JSON, no markdown formatting."""
         timestamp: str,
         llm_response: Dict[str, Any]
     ) -> str:
-        """Create a properly formatted skill from failure analysis"""
+        """Create a properly formatted skill from failure analysis.
         
-        # Build examples section
+        IMPORTANT: Skills are now generated as GUIDELINES for human reasoning, not hardcoded rules.
+        They should provide contextual insights that help the LLM reason better, not dictate decisions.
+        """
+        
+        # Build examples section - these show misclassifications to learn from
         examples_list = []
         for result in failures[:5]:
             ticket = result.ticket
@@ -276,30 +282,9 @@ Respond with ONLY valid JSON, no markdown formatting."""
                     f"**Correct resolution**: {ticket.actual_resolution}\n"
                 )
         
-        # Build patterns section
-        patterns = llm_response.get('patterns', [])
-        if patterns:
-            patterns_section = "\n".join([f"- {p}" for p in patterns])
-        else:
-            # Extract patterns from ticket content
-            patterns_section = "Patterns identified from failure analysis:\n"
-            for result in failures[:3]:
-                patterns_section += f"- Keywords from '{result.ticket.title}'\n"
-        
-        # Build rules section
-        rules = llm_response.get('rules', [])
-        if rules:
-            rules_section = "\n".join([f"{i}. {r}" for i, r in enumerate(rules, 1)])
-        else:
-            rules_section = f"""1. When ticket matches patterns above, apply the correct {skill_type}
-2. Check for similar keywords and context before making predictions
-3. Reference the examples above for guidance on similar cases"""
-        
-        # Build trigger patterns
-        if patterns:
-            trigger_patterns = "\n".join([f"- {p}" for p in patterns[:5]])
-        else:
-            trigger_patterns = f"- Tickets similar to the examples below"
+        # Build learning insights section - GUIDELINES not hardcoded rules
+        # Extract key themes from failures without creating rigid mappings
+        learning_insights = self._extract_learning_insights(failures, skill_type)
         
         # Map skill type to output field
         output_fields = {
@@ -313,15 +298,48 @@ Respond with ONLY valid JSON, no markdown formatting."""
             description=llm_response.get('description', f'Learned {skill_type} improvement skill'),
             timestamp=timestamp,
             ticket_ids=", ".join([r.ticket.id for r in failures]),
-            title=f"Learned {skill_type.title()} Patterns",
-            summary=f"This skill was generated from analyzing {len(failures)} incorrect {skill_type} predictions. "
-                   f"It captures patterns that should be recognized to improve future accuracy.",
-            trigger_patterns=trigger_patterns,
-            patterns_section=patterns_section,
-            rules_section=rules_section,
+            title=f"Learned {skill_type.title()} Insights",
+            summary=f"This skill captures insights from analyzing {len(failures)} incorrect {skill_type} predictions. "
+                   f"Use these as contextual guidelines to improve reasoning, not as rigid rules.",
+            learning_insights=learning_insights,
             examples_section="\n".join(examples_list),
             output_field=output_fields.get(skill_type, skill_type)
         )
+    
+    def _extract_learning_insights(self, failures: List[ProcessingResult], skill_type: str) -> str:
+        """Extract learning insights as guidelines, not hardcoded rules.
+        
+        Returns descriptive text that helps the LLM understand what to watch for,
+        without dictating specific decisions.
+        """
+        insights = []
+        
+        # Analyze themes across failed tickets
+        for result in failures:
+            ticket = result.ticket
+            pred = result.prediction
+            
+            # Generate insight based on what was wrong and what was right
+            if skill_type == "routing":
+                insights.append(
+                    f"- **Ticket about {ticket.title.lower()}**: Was routed to {pred.predicted_routing} "
+                    f"but should go to {ticket.actual_routing}. Context suggests looking for keywords "
+                    f"related to {ticket.actual_routing.lower()} responsibilities."
+                )
+            elif skill_type == "categorization":
+                insights.append(
+                    f"- **Ticket: {ticket.title}**: Was categorized as {pred.predicted_category} "
+                    f"but should be {ticket.actual_category}. The nature of this issue points toward "
+                    f"characteristics of {ticket.actual_category} problems."
+                )
+            else:  # resolution
+                insights.append(
+                    f"- **Ticket: {ticket.title}**: Initial suggestion was {pred.predicted_resolution[:80]}... "
+                    f"but the correct approach is {ticket.actual_resolution[:80]}... "
+                    f"Consider this type of issue more carefully."
+                )
+        
+        return "\n".join(insights) if insights else "No specific patterns to highlight."
     
     def _save_proposal(self, skill: ProposedSkill):
         """Save a proposed skill to disk"""

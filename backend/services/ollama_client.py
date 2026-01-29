@@ -60,7 +60,7 @@ class OllamaClient:
         temperature: float = 0.3
     ) -> Dict[str, Any]:
         """Generate a JSON response from the LLM"""
-        json_system = (system_prompt or "") + "\n\nIMPORTANT: Respond ONLY with valid JSON. No explanations or markdown."
+        json_system = (system_prompt or "") + "\n\nIMPORTANT: Respond ONLY with valid JSON in this exact format. Start with { and end with }. No explanations, no markdown, no extra text."
         
         response = await self.generate(
             prompt=prompt,
@@ -103,7 +103,9 @@ class OllamaClient:
         except json.JSONDecodeError as e:
             print(f"JSON parse error: {e}")
             print(f"Response was: {response[:500]}")
-            return {"error": "Failed to parse JSON", "raw_response": response}
+            # Return empty dict to allow graceful degradation
+            # The learning engine has a fallback for this
+            return {}
     
     async def check_connection(self) -> bool:
         """Check if Ollama is running and the model is available"""

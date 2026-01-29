@@ -7,6 +7,11 @@ Orchestrates ticket processing through the skills pipeline:
 3. Apply routing skill
 4. Apply resolution skill
 5. Compare predictions to actual outcomes
+
+Note on Learned Skills:
+- Approved learned skills are included as SUPPLEMENTARY GUIDANCE only
+- They provide contextual insights from past failures, not hard rules
+- The LLM's general reasoning is primary; learned insights are secondary
 """
 
 import json
@@ -22,23 +27,51 @@ class TicketProcessor:
     def __init__(self):
         self.skill_loader = skill_loader
     
+    def _get_approved_learned_skills(self) -> Dict[str, str]:
+        """Get all approved learned skills from proposed_skills directory.
+        
+        Returns a dict of skill_name -> skill_content for all approved skills.
+        These are used as supplementary guidance in the system prompt.
+        """
+        learned_skills = {}
+        try:
+            # Get all skills that are approved (in data/proposed_skills/approved_*.md)
+            all_skills = self.skill_loader.discover_skills()
+            
+            # Filter to only approved learned skills (from proposed_skills directory)
+            # by checking if they're not in the core skills
+            core_skill_names = {'categorization', 'routing', 'resolution', 'ticket-parser'}
+            
+            for skill in all_skills:
+                if skill.name not in core_skill_names:
+                    # This is a learned skill - get its content
+                    content = self.skill_loader.get_skill_content(skill.name)
+                    if content:
+                        learned_skills[skill.name] = content
+        except Exception as e:
+            print(f"Error loading approved learned skills: {e}")
+        
+        return learned_skills
+    
     async def process_ticket(self, ticket: Ticket) -> ProcessingResult:
         """Process a single ticket through all skills"""
         
-        # Get skill instructions for all available skills
+        # Get skill instructions for core ITSM skills
         categorization_skill = self.skill_loader.get_skill_content("categorization")
         routing_skill = self.skill_loader.get_skill_content("routing")
         resolution_skill = self.skill_loader.get_skill_content("resolution")
         ticket_parser_skill = self.skill_loader.get_skill_content("ticket-parser")
-        email_routing_skill = self.skill_loader.get_skill_content("Email Routing Skill")
         
-        # Build the combined prompt with skill context
+        # Get approved learned skills as supplementary guidance
+        learned_skills = self._get_approved_learned_skills()
+        
+        # Build the combined prompt with core skill context and learned insights
         system_prompt = self._build_system_prompt(
             categorization_skill,
             routing_skill,
             resolution_skill,
             ticket_parser_skill,
-            email_routing_skill
+            learned_skills
         )
         
         prompt = self._build_ticket_prompt(ticket)
@@ -133,9 +166,23 @@ class TicketProcessor:
         routing_skill: Optional[str],
         resolution_skill: Optional[str],
         ticket_parser_skill: Optional[str] = None,
-        email_routing_skill: Optional[str] = None
+        learned_skills: Optional[Dict[str, str]] = None
     ) -> str:
-        """Build the system prompt with all available skill instructions"""
+        """Build the system prompt with core ITSM skill instructions and learned insights
+        
+        Args:
+            categorization_skill: Core categorization guidelines
+            routing_skill: Core routing guidelines
+            resolution_skill: Core resolution guidelines
+            ticket_parser_skill: Optional ticket parsing guidelines
+            learned_skills: Optional dict of learned skill name -> content
+        
+        Returns:
+            Complete system prompt for the LLM
+            
+        Note: Core skills are primary. Learned skills provide supplementary contextual
+        guidance from past failures - they are secondary to the LLM's reasoning.
+        """
         
         base_prompt = """You are an ITSM (IT Service Management) agent specializing in ticket processing.
 Your role is to analyze support tickets and provide:
@@ -155,7 +202,7 @@ Respond ONLY with a JSON object in this exact format:
 }
 """
         
-        # Add all available skills to the prompt
+        # Add core skills to the prompt (in order of application)
         if ticket_parser_skill:
             base_prompt += f"\n\n## Ticket Parsing Guidelines\n{ticket_parser_skill}"
         
@@ -168,8 +215,15 @@ Respond ONLY with a JSON object in this exact format:
         if resolution_skill:
             base_prompt += f"\n\n## Resolution Guidelines\n{resolution_skill}"
         
-        if email_routing_skill:
-            base_prompt += f"\n\n## Email Routing Skill (Learned)\n{email_routing_skill}"
+        # Add learned skills as supplementary guidance if available
+        if learned_skills:
+            base_prompt += "\n\n## Supplementary Insights from Learned Skills\n"
+            base_prompt += "The following insights come from analyzing past incorrect predictions. "
+            base_prompt += "Use them as contextual guidance to inform your reasoning, but your primary "
+            base_prompt += "decision-making should follow the core guidelines above.\n"
+            
+            for skill_name, skill_content in learned_skills.items():
+                base_prompt += f"\n### {skill_name}\n{skill_content}"
         
         return base_prompt
     
