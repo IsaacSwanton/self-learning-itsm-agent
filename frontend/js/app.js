@@ -15,6 +15,14 @@ const skillModal = document.getElementById('skill-modal');
 const modalOverlay = document.getElementById('modal-overlay');
 const modalClose = document.getElementById('modal-close');
 
+// Set initial page
+document.getElementById('process-page').style.display = 'block';
+document.querySelectorAll('.page:not(#process-page)').forEach(p => {
+    p.style.display = 'none';
+});
+document.querySelector('.nav-item[data-page="process"]').classList.add('active');
+
+
 // Navigation
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
@@ -25,11 +33,16 @@ document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.add('active');
         
         // Show page
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(`${page}-page`).classList.add('active');
+        document.querySelectorAll('.page').forEach(p => {
+            p.style.display = 'none';
+        });
+        document.getElementById(`${page}-page`).style.display = 'block';
         
         // Load data
-        if (page === 'skills') loadProposedSkills();
+        if (page === 'skills') {
+            loadProposedSkills();
+            loadActiveSkills();
+        }
     });
 });
 
@@ -144,6 +157,31 @@ async function loadResults() {
     }
 }
 
+async function loadActiveSkills() {
+    try {
+        const response = await fetch('/api/skills');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        const skills = data.skills; // Correctly access the skills array
+        const grid = document.getElementById('active-skills-grid');
+        grid.innerHTML = ''; // Clear existing skills
+        if (skills.length === 0) {
+            grid.innerHTML = '<p class="col-span-full">No active skills found.</p>';
+        } else {
+            skills.forEach(skill => {
+                const skillCard = createSkillCard(skill, false);
+                grid.appendChild(skillCard);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading active skills:', error);
+        const grid = document.getElementById('active-skills-grid');
+        grid.innerHTML = '<p class="col-span-full">Error loading active skills.</p>';
+    }
+}
+
 // Load proposed skills
 async function loadProposedSkills() {
     try {
@@ -180,8 +218,46 @@ async function loadProposedSkills() {
             badge.textContent = skills.length;
             badge.style.display = 'inline-flex';
         }
-    } catch (e) {
-        console.error('Failed to load skills:', e);
+    } catch (error) {
+        console.error('Error loading proposed skills:', error);
+        const grid = document.getElementById('proposed-skills-grid');
+        grid.innerHTML = '<p class="col-span-full">Error loading proposed skills.</p>';
+    }
+}
+
+function createSkillCard(skill, isProposed) {
+    const skillId = isProposed ? skill.id : skill.name;
+    const card = document.createElement('div');
+    card.className = 'skill-card';
+
+    const categoryTag = skill.category 
+        ? `<div class="skill-category">${skill.category}</div>` 
+        : '';
+
+    card.innerHTML = `
+        <div class="skill-card-header">
+            <h4 class="skill-name">${skill.name}</h4>
+            ${categoryTag}
+        </div>
+        <p class="skill-description">${skill.description || 'No description provided.'}</p>
+    `;
+
+    if (isProposed) {
+        const approveButton = document.createElement('button');
+        approveButton.className = 'btn btn-primary btn-approve';
+        approveButton.textContent = 'Approve';
+        approveButton.onclick = () => approveSkill(skillId);
+        card.appendChild(approveButton);
+    }
+    return card;
+}
+
+async function approveSkill(skillId) {
+    try {
+        await fetch(`/api/skills/approve/${skillId}`, { method: 'POST' });
+        loadProposedSkills();
+    } catch (error) {
+        console.error('Error approving skill:', error);
     }
 }
 

@@ -62,6 +62,8 @@ class SkillLoader:
             return SkillMetadata(
                 name=frontmatter.get('name', skill_file.parent.name),
                 description=frontmatter.get('description', ''),
+                category=frontmatter.get('category'),
+                key_insights=frontmatter.get('key_insights'),
                 file_path=str(skill_file),
                 is_approved=is_approved
             )

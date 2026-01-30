@@ -53,6 +53,8 @@ class SkillMetadata(BaseModel):
     """Metadata from SKILL.md frontmatter"""
     name: str
     description: str
+    category: Optional[str] = None
+    key_insights: Optional[List[str]] = None
     file_path: str
     is_approved: bool = True
 
